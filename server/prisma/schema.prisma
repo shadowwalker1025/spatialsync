@@ -1,0 +1,72 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Scene {
+  id                 String         @id @default(uuid())
+  name               String         @default("Untitled Scene")
+  description        String?
+  environmentPreset  String         @default("studio")
+  backgroundColor    String         @default("#0a0d14")
+  gridVisible        Boolean        @default(true)
+  shadowsEnabled     Boolean        @default(true)
+  cameraPosition     String         @default("[10, 10, 10]") // JSON string [x,y,z]
+  cameraTarget       String         @default("[0, 0, 0]") // JSON string [x,y,z]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  objects            SceneObject[]
+  annotations        Annotation[]
+}
+
+model SceneObject {
+  id              String   @id @default(uuid())
+  sceneId         String
+  name            String
+  type            String   // box, sphere, cylinder, cone, torus, plane, capsule, gltf, light
+  visible         Boolean  @default(true)
+  locked          Boolean  @default(false)
+  lockedBy        String?
+  lockedByName    String?
+  lockedByColor   String?
+  transform       String   // JSON string: { position, rotation, scale }
+  materialProps   String   // JSON string: { color, roughness, metalness, wireframe, ... }
+  geometryData    String   @default("{}") // JSON string: { width, height, radius, ... }
+  assetUrl        String?
+  assetName       String?
+  lastModifiedBy  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  scene           Scene    @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+}
+
+model Annotation {
+  id          String   @id @default(uuid())
+  sceneId     String
+  objectId    String?
+  position    String   // JSON string [x,y,z]
+  normal      String?  // JSON string [x,y,z]
+  title       String?
+  text        String
+  authorId    String
+  authorName  String
+  authorColor String
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  scene       Scene    @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+}
+
+model UploadedAsset {
+  id           String   @id @default(uuid())
+  filename     String
+  originalName String
+  url          String
+  size         Int
+  mimeType     String
+  uploadedAt   DateTime @default(now())
+}

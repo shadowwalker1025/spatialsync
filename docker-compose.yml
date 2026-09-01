@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Persistence Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: spatialsync-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: spatialsync
+      POSTGRES_PASSWORD: spatialsync_secret_password
+      POSTGRES_DB: spatialsync_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spatialsync -d spatialsync_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis Pub/Sub & High-Frequency Cache
+  redis:
+    image: redis:7-alpine
+    container_name: spatialsync-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Node.js WebSocket & REST Backend Server
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: spatialsync-backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      DATABASE_URL: "postgresql://spatialsync:spatialsync_secret_password@postgres:5432/spatialsync_db?schema=public"
+      REDIS_URL: "redis://redis:6379"
+      CORS_ORIGIN: "http://localhost:5173"
+      UPLOAD_DIR: "/app/uploads"
+    volumes:
+      - backend_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # React 18 / Vite 3D WebGL Client
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: spatialsync-client
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_uploads:

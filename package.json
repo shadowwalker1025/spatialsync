@@ -1,0 +1,34 @@
+{
+  "name": "spatialsync-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SpatialSync: Full-Stack Real-Time 3D Spatial Collaboration Hub",
+  "workspaces": [
+    "shared-types",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "install:all": "npm install --prefix shared-types && npm install --prefix server && npm install --prefix client",
+    "build:types": "npm run build --prefix shared-types",
+    "build:server": "npm run build --prefix server",
+    "build:client": "npm run build --prefix client",
+    "build": "npm run build:types && npm run build:server && npm run build:client",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down"
+  },
+  "keywords": [
+    "react-three-fiber",
+    "threejs",
+    "real-time",
+    "collaboration",
+    "spatial",
+    "webgl",
+    "socketio",
+    "redis"
+  ],
+  "author": "SpatialSync Team",
+  "license": "MIT"
+}
