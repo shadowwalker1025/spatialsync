@@ -30,6 +30,9 @@ function DevToolsBridge() {
 
 function CursorRaycaster() {
   const scene = useSceneStore((s) => s.scene);
+  const selectedObjectId = useSceneStore((s) => s.selectedObjectId);
+  const selectObject = useSceneStore((s) => s.selectObject);
+  const activeTool = useUIStore((s) => s.activeTool);
   const lastCursorEmitTime = useRef(0);
 
   const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
@@ -49,14 +52,23 @@ function CursorRaycaster() {
     }
   };
 
+  const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
+    if (activeTool === 'select' && selectedObjectId && scene) {
+      selectObject(null);
+      const socket = getSocket();
+      socket.emit('object:deselect', { sceneId: scene.id, objectId: selectedObjectId });
+    }
+  };
+
   return (
     <mesh
       visible={false}
       rotation={[-Math.PI / 2, 0, 0]}
       position={[0, -0.02, 0]}
       onPointerMove={handlePointerMove}
+      onPointerDown={handlePointerDown}
     >
-      <planeGeometry args={[200, 200]} />
+      <planeGeometry args={[300, 300]} />
       <meshBasicMaterial />
     </mesh>
   );
