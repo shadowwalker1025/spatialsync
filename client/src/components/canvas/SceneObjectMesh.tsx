@@ -115,10 +115,16 @@ export function SceneObjectMesh({ object }: SceneObjectMeshProps) {
   const handlePointerOver = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     setHovered(true);
+    if (activeTool === 'select' && !isLockedByPeer) {
+      document.body.style.cursor = 'pointer';
+    } else if (activeTool === 'annotate') {
+      document.body.style.cursor = 'crosshair';
+    }
   };
 
   const handlePointerOut = () => {
     setHovered(false);
+    document.body.style.cursor = activeTool === 'annotate' ? 'crosshair' : 'default';
   };
 
   // Render geometry by primitive type

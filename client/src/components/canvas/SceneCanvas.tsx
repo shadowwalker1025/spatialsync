@@ -3,6 +3,7 @@ import { Canvas, ThreeEvent, useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { useSceneStore } from '../../store/useSceneStore';
+import { useUIStore } from '../../store/useUIStore';
 import { EnvironmentStudio } from './EnvironmentStudio';
 import { SceneGrid } from './SceneGrid';
 import { SceneObjectMesh } from './SceneObjectMesh';
@@ -68,6 +69,7 @@ export function SceneCanvas() {
   const scene = useSceneStore((s) => s.scene);
   const selectedObjectId = useSceneStore((s) => s.selectedObjectId);
   const selectObject = useSceneStore((s) => s.selectObject);
+  const activeTool = useUIStore((s) => s.activeTool);
 
   // Background pointer down (deselect object if clicking empty space)
   const handlePointerMissed = (e: MouseEvent) => {
@@ -79,9 +81,10 @@ export function SceneCanvas() {
   };
 
   const backgroundColor = scene?.backgroundColor || '#07090e';
+  const cursorClass = activeTool === 'annotate' ? 'cursor-crosshair' : 'cursor-default';
 
   return (
-    <div className="w-full h-full relative cursor-crosshair">
+    <div className={`w-full h-full relative ${cursorClass}`}>
       <Canvas
         shadows
         gl={{
