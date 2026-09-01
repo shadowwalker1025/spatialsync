@@ -1,33 +1,48 @@
 import React, { useRef, useState, useMemo, Suspense } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
+import { Html, TransformControls } from '@react-three/drei';
 import * as THREE from 'three';
-import { SceneObject } from '../../types';
+import { SceneObject, TransformData } from '../../types';
 import { useSceneStore } from '../../store/useSceneStore';
 import { useCollaborationStore } from '../../store/useCollaborationStore';
 import { useUIStore } from '../../store/useUIStore';
 import { useGPUDisposal } from '../../hooks/useGPUDisposal';
+import { useTransformThrottle } from '../../hooks/useTransformThrottle';
 import { GLTFModelViewer } from './GLTFModelViewer';
 import { getSocket } from '../../services/socket';
+import { degToRad } from '../../utils/math';
 
 interface SceneObjectMeshProps {
   object: SceneObject;
+  orbitControlsRef?: React.RefObject<any>;
 }
 
-export function SceneObjectMesh({ object }: SceneObjectMeshProps) {
+export function SceneObjectMesh({ object, orbitControlsRef }: SceneObjectMeshProps) {
   const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const gpuRef = useGPUDisposal();
 
   const selectedObjectId = useSceneStore((s) => s.selectedObjectId);
   const selectObject = useSceneStore((s) => s.selectObject);
+  const updateObjectTransform = useSceneStore((s) => s.updateObjectTransform);
   const scene = useSceneStore((s) => s.scene);
   const activeTool = useUIStore((s) => s.activeTool);
+  const transformMode = useUIStore((s) => s.transformMode);
+  const transformSpace = useUIStore((s) => s.transformSpace);
+  const snapEnabled = useUIStore((s) => s.snapEnabled);
+  const snapTranslation = useUIStore((s) => s.snapTranslation);
+  const snapRotation = useUIStore((s) => s.snapRotation);
+  const snapScale = useUIStore((s) => s.snapScale);
   const addAnnotation = useSceneStore((s) => s.addAnnotation);
   const currentUser = useCollaborationStore((s) => s.currentUser);
 
   const remoteTransforms = useCollaborationStore((s) => s.remoteTransforms);
   const remoteLocks = useCollaborationStore((s) => s.remoteLocks);
+
+  const { emitContinuousTransform, emitFinalTransform } = useTransformThrottle(
+    scene?.id || 'default',
+    object.id
+  );
 
   const [hovered, setHovered] = useState(false);
 
@@ -152,12 +167,13 @@ export function SceneObjectMesh({ object }: SceneObjectMeshProps) {
   const mat = object.materialProps;
 
   return (
-    <group
-      ref={groupRef}
-      name={object.name}
-      userData={{ objectId: object.id }}
-      visible={object.visible}
-    >
+    <>
+      <group
+        ref={groupRef}
+        name={object.name}
+        userData={{ objectId: object.id }}
+        visible={object.visible}
+      >
       <group ref={gpuRef as any}>
         {object.type === 'gltf' && object.assetUrl ? (
           <Suspense
@@ -235,5 +251,51 @@ export function SceneObjectMesh({ object }: SceneObjectMeshProps) {
         </>
       )}
     </group>
+
+    {/* Interactive 3D Transform Gizmo (Translate, Rotate, Scale) */}
+    {isSelected && activeTool === 'select' && !isLockedByPeer && (
+      <TransformControls
+        object={groupRef as any}
+        mode={transformMode}
+        space={transformSpace}
+        translationSnap={snapEnabled ? snapTranslation : null}
+        rotationSnap={snapEnabled ? degToRad(snapRotation) : null}
+        scaleSnap={snapEnabled ? snapScale : null}
+        size={0.85}
+        makeDefault
+        onMouseDown={() => {
+          if (orbitControlsRef?.current) {
+            orbitControlsRef.current.enabled = false;
+          }
+        }}
+        onMouseUp={() => {
+          if (orbitControlsRef?.current) {
+            orbitControlsRef.current.enabled = true;
+          }
+          if (groupRef.current && scene) {
+            const obj = groupRef.current;
+            const finalTransform: TransformData = {
+              position: [obj.position.x, obj.position.y, obj.position.z],
+              rotation: [obj.rotation.x, obj.rotation.y, obj.rotation.z],
+              scale: [obj.scale.x, obj.scale.y, obj.scale.z],
+            };
+            updateObjectTransform(object.id, finalTransform, true);
+            emitFinalTransform(finalTransform);
+          }
+        }}
+        onObjectChange={() => {
+          if (groupRef.current) {
+            const obj = groupRef.current;
+            const currentTransform: TransformData = {
+              position: [obj.position.x, obj.position.y, obj.position.z],
+              rotation: [obj.rotation.x, obj.rotation.y, obj.rotation.z],
+              scale: [obj.scale.x, obj.scale.y, obj.scale.z],
+            };
+            emitContinuousTransform(currentTransform);
+          }
+        }}
+      />
+    )}
+  </>
   );
 }

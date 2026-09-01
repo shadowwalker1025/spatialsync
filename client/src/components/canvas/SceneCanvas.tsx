@@ -7,7 +7,6 @@ import { useUIStore } from '../../store/useUIStore';
 import { EnvironmentStudio } from './EnvironmentStudio';
 import { SceneGrid } from './SceneGrid';
 import { SceneObjectMesh } from './SceneObjectMesh';
-import { TransformGizmo } from './TransformGizmo';
 import { RemoteCursors } from './RemoteCursors';
 import { Annotations3D } from './Annotations3D';
 import { CameraManager } from './CameraManager';
@@ -52,11 +51,14 @@ function CursorRaycaster() {
     }
   };
 
-  const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
+  const handleClick = (e: ThreeEvent<MouseEvent>) => {
+    // Only deselect if clicking directly on empty ground
     if (activeTool === 'select' && selectedObjectId && scene) {
-      selectObject(null);
-      const socket = getSocket();
-      socket.emit('object:deselect', { sceneId: scene.id, objectId: selectedObjectId });
+      if (e.intersections.length > 0 && e.intersections[0].object === e.object) {
+        selectObject(null);
+        const socket = getSocket();
+        socket.emit('object:deselect', { sceneId: scene.id, objectId: selectedObjectId });
+      }
     }
   };
 
@@ -66,7 +68,7 @@ function CursorRaycaster() {
       rotation={[-Math.PI / 2, 0, 0]}
       position={[0, -0.02, 0]}
       onPointerMove={handlePointerMove}
-      onPointerDown={handlePointerDown}
+      onClick={handleClick}
     >
       <planeGeometry args={[300, 300]} />
       <meshBasicMaterial />
@@ -132,13 +134,10 @@ export function SceneCanvas() {
         {/* Raycaster plane for continuous cursor tracking */}
         <CursorRaycaster />
 
-        {/* Scene Objects */}
+        {/* Scene Objects with integrated TransformControls */}
         {objects.map((obj) => (
-          <SceneObjectMesh key={obj.id} object={obj} />
+          <SceneObjectMesh key={obj.id} object={obj} orbitControlsRef={orbitControlsRef} />
         ))}
-
-        {/* Transform Manipulator Gizmo */}
-        <TransformGizmo orbitControlsRef={orbitControlsRef} />
 
         {/* Remote 3D Cursors */}
         <RemoteCursors />
