@@ -21,6 +21,7 @@ export function TransformGizmo({ orbitControlsRef }: TransformGizmoProps) {
 
   const transformMode = useUIStore((s) => s.transformMode);
   const transformSpace = useUIStore((s) => s.transformSpace);
+  const activeTool = useUIStore((s) => s.activeTool);
   const snapEnabled = useUIStore((s) => s.snapEnabled);
   const snapTranslation = useUIStore((s) => s.snapTranslation);
   const snapRotation = useUIStore((s) => s.snapRotation);
@@ -30,6 +31,16 @@ export function TransformGizmo({ orbitControlsRef }: TransformGizmoProps) {
     scene?.id || 'default',
     selectedObjectId || ''
   );
+
+  // Find the selected object in Three.js scene graph via recursive traversal
+  let targetObject: THREE.Object3D | null = null;
+  if (selectedObjectId && activeTool === 'select') {
+    threeScene.traverse((child) => {
+      if (!targetObject && child.userData?.objectId === selectedObjectId) {
+        targetObject = child;
+      }
+    });
+  }
 
   useEffect(() => {
     const controls = transformRef.current;
@@ -55,7 +66,7 @@ export function TransformGizmo({ orbitControlsRef }: TransformGizmoProps) {
     }
 
     function handleObjectChange() {
-      if (controls.object && selectedObjectId && controls.dragging) {
+      if (controls.object && selectedObjectId) {
         const obj = controls.object;
         const currentTransform = {
           position: [obj.position.x, obj.position.y, obj.position.z] as [number, number, number],
@@ -75,13 +86,7 @@ export function TransformGizmo({ orbitControlsRef }: TransformGizmoProps) {
       controls.removeEventListener('dragging-changed', handleDraggingChanged);
       controls.removeEventListener('objectChange', handleObjectChange);
     };
-  }, [selectedObjectId, scene?.id, emitContinuousTransform, emitFinalTransform, updateObjectTransform, orbitControlsRef]);
-
-  if (!selectedObjectId) return null;
-
-  // Find the selected object in Three.js scene graph
-  const targetObject = threeScene.getObjectByProperty('userData', { objectId: selectedObjectId }) ||
-    threeScene.children.find((child) => child.userData?.objectId === selectedObjectId);
+  }, [selectedObjectId, scene?.id, emitContinuousTransform, emitFinalTransform, updateObjectTransform, orbitControlsRef, targetObject]);
 
   if (!targetObject) return null;
 
